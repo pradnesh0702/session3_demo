@@ -1,0 +1,465 @@
+INTERSTELLAR GEODASH - ANTIGRAVITY PROJECT CONTEXT
+======================================================
+
+BASE REPOSITORY
+---------------
+Repository:
+https://github.com/IdeiGeniale/GeoDash2.2
+
+IMPORTANT:
+The repository is NOT currently a Phaser project.
+
+The repository README describes it as a browser Geometry Dash-style game built
+entirely with HTML, CSS and JavaScript. The current repository contains a very
+small structure with index.html, README.md, LICENSE, and an image. Most of the
+game implementation is inside index.html.
+
+Therefore, DO NOT assume Phaser already exists in the repository.
+
+PROJECT GOAL
+------------
+Create an Interstellar-themed Geometry Dash-style browser game using:
+
+- Existing GeoDash2.2 repository as the gameplay/reference base
+- Phaser as the game framework for the new implementation
+- JavaScript or TypeScript
+- HTML/CSS for surrounding UI where appropriate
+- Git/GitHub for version control
+- Microsoft Azure for deployment
+
+Python/Flask/backend are NOT required for the first version.
+
+The objective is to reuse the existing game's gameplay ideas and mechanics,
+while moving the game toward a cleaner Phaser-based architecture and adding
+the Interstellar theme and custom mechanics.
+
+CURRENT REPOSITORY - VERIFIED FACTS
+-----------------------------------
+The current repository includes:
+
+- index.html
+- README.md
+- LICENSE (GPL-3.0)
+- GeoDash 2.2.png
+
+The game code is embedded in index.html.
+
+The existing game uses:
+- HTML canvas
+- Vanilla JavaScript
+- CSS
+- Browser Web Audio API
+- LocalStorage
+- Procedural level generation
+
+It does NOT currently use:
+- Phaser
+- React
+- Vite
+- Node-based game architecture
+- Python
+- Flask
+- FastAPI
+
+CURRENT GAME ARCHITECTURE
+-------------------------
+The existing index.html contains:
+
+1. HTML UI
+   - Main menu
+   - Level selection
+   - Customization menu
+   - Pause/death menu
+   - Level editor UI
+   - HUD
+   - Mobile touch overlay
+
+2. CSS
+   - UI styling
+   - Neon theme
+   - Menu styling
+   - Editor controls
+   - Canvas styling
+   - Responsive/mobile behavior
+
+3. JavaScript game implementation
+   - Constants
+   - Object types
+   - Audio
+   - Level generation
+   - Player physics
+   - Collision detection
+   - Rendering
+   - Input handling
+   - Level/editor logic
+   - Game/menu state
+
+GAMEPLAY SYSTEMS ALREADY PRESENT
+---------------------------------
+The existing code already contains useful gameplay logic that should be
+understood and preserved conceptually during the Phaser implementation.
+
+Player:
+- Player class
+- 40x40 player size
+- Horizontal automatic movement
+- Cube mode
+- Ship mode
+- Gravity direction
+- Velocity
+- Rotation
+- Ground detection
+- Death/win states
+
+Physics constants include:
+- Cube gravity
+- Ship gravity
+- Ship thrust
+- Cube jump force
+- Jump pad forces
+- Orb forces
+- Horizontal speed
+- Grid/block size
+- Terminal velocity
+
+Movement:
+- Player automatically moves horizontally.
+- Vertical movement is controlled by gravity/jump/thrust.
+- Ship mode uses thrust while input is held.
+- Cube mode uses jump mechanics.
+
+Collision:
+- Axis-aligned bounding-box style collision checks.
+- Separate reduced hitbox for spikes.
+- Previous-position checks are used for determining landing and side
+  collisions.
+- Blocks support vertical collision resolution.
+- Spikes cause death.
+- Pads apply vertical force.
+- Orbs respond to input.
+- Portals change player mode or gravity.
+
+Existing object types:
+- EMPTY
+- BLOCK
+- SPIKE
+- YELLOW PAD
+- PINK PAD
+- YELLOW ORB
+- PINK ORB
+- SHIP PORTAL
+- CUBE PORTAL
+- NORMAL GRAVITY PORTAL
+- INVERTED GRAVITY PORTAL
+
+Level system:
+- Levels are procedurally generated.
+- A LEVELS array defines level metadata.
+- genLevel() generates a 2D map.
+- The map uses rows and columns based on a fixed grid.
+- Ground blocks are generated automatically.
+- Obstacles and interactables are placed based on rules/randomness.
+- Existing code includes multiple short levels.
+- The level editor uses LocalStorage for custom levels.
+
+Audio:
+- Uses browser Web Audio API directly.
+- Simple oscillator-based effects are generated for events such as:
+  jump, death, orb and portal.
+- It is not using Phaser audio currently.
+
+VISUALS
+-------
+The current game renders using the HTML canvas.
+
+The existing visual system is mostly procedural/simple drawing rather than a
+large external asset pipeline.
+
+For the Interstellar version, create a proper Phaser asset structure.
+
+Suggested structure:
+
+src/
+  main.js
+  scenes/
+    BootScene.js
+    MenuScene.js
+    GameScene.js
+    GameOverScene.js
+  entities/
+    Player.js
+    Obstacle.js
+    Portal.js
+  systems/
+    LevelSystem.js
+    AudioSystem.js
+    EffectsSystem.js
+  levels/
+    level1.js
+    level2.js
+    level3.js
+    level4.js
+
+assets/
+  player/
+  backgrounds/
+  obstacles/
+  portals/
+  effects/
+  audio/
+  ui/
+
+IMPORTANT PHASER DECISION
+-------------------------
+Do NOT blindly install Phaser and rewrite everything immediately.
+
+First:
+1. Analyze the existing game.
+2. Identify which mechanics should be preserved.
+3. Create a clean Phaser project structure.
+4. Port/reimplement the existing mechanics into Phaser incrementally.
+5. Keep gameplay behavior similar to the original where practical.
+6. Test after every major migration step.
+
+The goal is NOT to copy every line of the old index.html.
+
+The goal is to preserve the useful gameplay design while creating a maintainable
+Phaser-based version.
+
+RECOMMENDED DEVELOPMENT ORDER
+-----------------------------
+PHASE 1 - Repository understanding
+- Run the original game.
+- Confirm how it currently behaves.
+- Study index.html.
+- Identify player, physics, collision, level and rendering logic.
+- Do not modify the original implementation unnecessarily.
+
+PHASE 2 - Phaser foundation
+- Add Phaser.
+- Create a clean Phaser entry point.
+- Create a boot/preload scene.
+- Create a game scene.
+- Confirm a Phaser canvas renders correctly.
+- Confirm the game can run locally.
+
+PHASE 3 - Port core gameplay
+Implement in this order:
+1. Player
+2. Automatic horizontal movement
+3. Gravity
+4. Jump
+5. Ground/platform collision
+6. Spike collision/death
+7. Camera/scrolling
+8. Basic level loading
+9. Restart/game-over flow
+
+PHASE 4 - Port existing GeoDash features
+- Ship mode
+- Ship thrust
+- Gravity inversion
+- Jump pads
+- Orbs
+- Portals
+- Level selection
+- Progress/HUD
+- Mobile/touch input if practical
+
+PHASE 5 - Interstellar visual transformation
+Replace the default GeoDash visual identity with:
+- Space background
+- Stars
+- Nebulae
+- Planets
+- Spacecraft player
+- Asteroids/space debris
+- Cosmic particles
+- Sci-fi UI
+- Space-themed portals
+
+Do not copy copyrighted Interstellar movie assets directly.
+
+Use original/generated/licensed assets and music.
+
+PHASE 6 - UNIQUE INTERSTELLAR FEATURES
+Add these one at a time:
+
+1. WORMHOLE
+   - A visual portal/transition.
+   - Can change speed, gravity or environment.
+   - Add screen/particle effects.
+
+2. BLACK HOLE
+   - Large black-hole visual.
+   - Add a gravity/distortion gameplay mechanic.
+   - Objects can be influenced by the black hole.
+   - Keep the mechanic playable and predictable.
+
+3. TESSERACT
+   - Final special section/level.
+   - Space-time themed visual environment.
+   - Geometry can appear to shift/fold.
+   - Use controlled effects rather than making gameplay confusing.
+
+PHASE 7 - POLISH
+- Better animations
+- Particle effects
+- Screen shake where appropriate
+- Transitions
+- Better menus
+- Sound effects
+- Background music using properly licensed/original music
+- Responsive desktop/mobile behavior
+- Performance optimization
+
+PHASE 8 - BUILD AND AZURE DEPLOYMENT
+- Create production build.
+- Verify all assets load correctly.
+- Test the production build locally.
+- Deploy the static web game to Microsoft Azure.
+- Verify the deployed URL.
+- Do not introduce a Python server unless a real backend requirement appears.
+
+FILES / AREAS TO KEEP CONCEPTUALLY
+-----------------------------------
+Preserve the gameplay ideas from:
+- Player physics
+- Collision rules
+- Object types
+- Level generation/design
+- Portal behavior
+- Gravity inversion
+- Ship mode
+- Jump/pad/orb mechanics
+
+These should be reimplemented cleanly in Phaser rather than copied blindly.
+
+FILES / AREAS THAT CAN BE REPLACED
+-----------------------------------
+The following can be redesigned for the new game:
+- Canvas rendering code
+- CSS visual theme
+- Player visuals
+- Background
+- Obstacles visuals
+- Portal visuals
+- UI styling
+- Audio implementation
+- Level presentation
+- Particle/effect system
+
+GIT SAFETY
+----------
+Before making major changes:
+
+1. Preserve the original repository state.
+2. Create a separate branch such as:
+   interstellar-phaser
+3. Commit working milestones frequently.
+
+Suggested milestones:
+- Original repo working
+- Phaser foundation working
+- Player physics working
+- Core GeoDash mechanics working
+- Interstellar theme added
+- Wormhole added
+- Black hole added
+- Tesseract added
+- Final polish
+- Azure deployment
+
+AI AGENT RULES
+--------------
+Antigravity/Gemini should:
+
+- Inspect before modifying.
+- Explain important architectural decisions.
+- Make incremental changes.
+- Avoid unnecessary rewrites.
+- Avoid deleting working functionality without explanation.
+- Test after major changes.
+- Preserve existing gameplay behavior where possible.
+- Prefer small, understandable modules.
+- Avoid introducing unnecessary frameworks.
+- Do not add Python/Flask unless specifically required.
+- Do not replace the entire project with an unrelated template.
+- Keep Phaser as the game framework for the final implementation.
+
+IMPORTANT FIRST TASK FOR ANTIGRAVITY
+------------------------------------
+Before writing or changing game code:
+
+1. Inspect the repository.
+2. Confirm that it is vanilla HTML/CSS/JavaScript Canvas and not Phaser.
+3. Explain the current architecture.
+4. Map the existing gameplay systems to their future Phaser equivalents.
+5. Propose the Phaser project structure.
+6. Identify the first minimal migration step.
+7. Wait for approval before performing a large migration.
+
+FINAL TARGET ARCHITECTURE
+--------------------------
+                GitHub Repository
+                       |
+                       v
+             Phaser + JavaScript
+                       |
+              +--------+--------+
+              |                 |
+          Game Logic         Assets/UI
+              |                 |
+              +--------+--------+
+                       |
+                       v
+              Interstellar Dash
+                       |
+                       v
+                Production Build
+                       |
+                       v
+              Microsoft Azure
+                       |
+                       v
+                Browser Game
+
+TECHNOLOGY SUMMARY
+------------------
+Base/reference:
+- GeoDash2.2 GitHub repository
+
+Game framework:
+- Phaser
+
+Language:
+- JavaScript (or TypeScript if the project benefits from it)
+
+Version control:
+- Git + GitHub
+
+AI development:
+- Antigravity + Gemini
+
+Deployment:
+- Microsoft Azure
+
+Backend:
+- None initially
+
+Python:
+- Not required
+
+Flask:
+- Not required
+
+Database:
+- Not required
+
+END GOAL
+--------
+Create a polished Interstellar-themed Geometry Dash-style game by using the
+existing GeoDash2.2 project as a gameplay reference/base, reimplementing its
+core mechanics in a clean Phaser architecture, replacing the visual identity,
+adding wormhole/black-hole/Tesseract mechanics, and deploying the finished
+browser game to Microsoft Azure.
