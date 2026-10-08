@@ -1,0 +1,1938 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GeoDash Lite - Fixed Scope</title>
+    <style>
+        /* CSS is kept in the single file and uses a dark, neon-themed aesthetic */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700;900&display=swap');
+
+        :root {
+            --primary: #00ffea;
+            --secondary: #bd00ff;
+            --panel: rgba(0, 0, 0, 0.95);
+            --color-ship: #ff9900;
+            --color-cube: #00ff00;
+            --color-grav-up: yellow;
+            --color-grav-down: #00ffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            overflow: hidden;
+            font-family: 'Roboto', sans-serif;
+            color: white;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            /* Gradient background for the level */
+            background: #02091a;
+        }
+
+        /* UI Styling */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .menu-screen {
+            pointer-events: auto;
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 12px;
+            border: 3px solid var(--primary);
+            text-align: center;
+            display: none;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 0 50px rgba(0, 255, 234, 0.2);
+            animation: pop 0.2s ease-out;
+        }
+
+        .menu-screen.active {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin: 0 0 10px 0;
+            background: linear-gradient(to right, var(--primary), #fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+            font-style: italic;
+        }
+
+        button {
+            background: linear-gradient(45deg, var(--primary), #00a8cc);
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            color: #000;
+            font-weight: 900;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.1s;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.secondary {
+            background: #444;
+            color: white;
+        }
+
+        .level-scroll {
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 100%;
+        }
+
+        .level-btn {
+            background: #222;
+            color: white;
+            padding: 15px;
+            border: 1px solid #444;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 4px;
+        }
+
+        /* Editor Toolbar */
+        #editor-ui {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px;
+            border-radius: 10px;
+            display: none;
+            pointer-events: auto;
+            border: 1px solid #555;
+            z-index: 20;
+            width: 95%;
+            max-width: 650px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        /* Ensure editor UI is hidden by default and only shown by JS */
+        #editor-ui:not(.active) {
+            display: none;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 5px;
+            padding: 0 5px;
+            border-right: 1px solid #444;
+        }
+
+        .tool-group:last-child {
+            border: none;
+        }
+
+        .tool {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #333;
+            border-radius: 4px;
+            background: #111;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .tool.selected {
+            border-color: var(--primary);
+            background: #222;
+            box-shadow: 0 0 5px var(--primary);
+        }
+
+        /* Simple CSS Icons */
+        .icon-spike {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 16px solid white;
+        }
+
+        .icon-block {
+            width: 16px;
+            height: 16px;
+            border: 2px solid white;
+        }
+
+        .icon-orb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        /* Portal Icons */
+        .icon-portal {
+            width: 12px;
+            height: 20px;
+            border: 2px solid;
+            border-radius: 4px;
+            position: relative;
+            font-weight: bold;
+        }
+
+        .icon-portal.grav-up::before {
+            content: 'Γû▓';
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            font-size: 10px;
+            line-height: 10px;
+            color: var(--color-grav-up);
+        }
+
+        .icon-portal.grav-down::before {
+            content: 'Γû╝';
+            position: absolute;
+            bottom: 1px;
+            left: 1px;
+            font-size: 10px;
+            line-height: 10px;
+            color: var(--color-grav-down);
+        }
+
+
+        /* Color utility classes for editor icons */
+        .c-yel {
+            border-color: var(--color-grav-up) !important;
+            color: var(--color-grav-up);
+        }
+
+        .c-pink {
+            border-color: #ff00ff !important;
+            color: #ff00ff;
+        }
+
+        .c-blue {
+            border-color: var(--color-grav-down) !important;
+            color: var(--color-grav-down);
+        }
+
+        .c-green {
+            border-color: var(--color-cube) !important;
+            color: var(--color-cube);
+        }
+
+        .c-org {
+            border-color: var(--color-ship) !important;
+            color: var(--color-ship);
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            z-index: 5;
+            text-shadow: 2px 2px 0 #000;
+            display: none;
+        }
+
+        /* Mobile controls overlay to capture all touch input */
+        #mobile-controls {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: none;
+            touch-action: manipulation;
+        }
+
+        @keyframes pop {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <!-- Full-screen, transparent layer for mobile touch input -->
+        <div id="mobile-controls"></div>
+        <div id="hud">Attempt <span id="att">1</span></div>
+
+        <div id="ui-layer">
+            <!-- Main Menu -->
+            <div id="m-main" class="menu-screen active">
+                <h1>GeoDash Lite</h1>
+                <button onclick="window.Game.menu('levels')">Play Levels</button>
+            </div>
+
+            <!-- Level Selection Menu -->
+            <div id="m-levels" class="menu-screen">
+                <h2>Select Level</h2>
+                <div class="level-scroll" id="level-list"></div>
+                <button class="secondary" onclick="window.Game.menu('main')">Back</button>
+            </div>
+
+            <!-- Customization Menu -->
+            <div id="m-cust" class="menu-screen">
+                <h2>Icon Kit</h2>
+                <canvas id="prevC" width="80" height="80"
+                    style="background:#000; border-radius:8px; border:1px solid #555; align-self:center;"></canvas>
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <input type="color" id="c1" value="#00ffea" onchange="window.Game.updIcon()">
+                    <input type="color" id="c2" value="#bd00ff" onchange="window.Game.updIcon()">
+                </div>
+                <button onclick="window.Game.menu('main')">Back</button>
+            </div>
+
+            <!-- Pause/Death Menu -->
+            <div id="m-pause" class="menu-screen">
+                <h2 id="p-title">Paused</h2>
+                <button onclick="window.Game.restart()">Restart</button>
+                <button id="btn-resume" onclick="window.Game.resume()">Resume</button>
+                <button class="secondary" onclick="window.Game.menu('main')">Exit</button>
+            </div>
+        </div>
+
+        <!-- Editor Toolbar -->
+        <div id="editor-ui">
+            <div class="tool-group">
+                <div class="tool selected" onclick="window.Editor.tool(1)" title="Block">
+                    <div class="icon-block"></div>
+                </div>
+                <div class="tool" onclick="window.Editor.tool(2)" title="Spike">
+                    <div class="icon-spike"></div>
+                </div>
+            </div>
+            <div class="tool-group">
+                <div class="tool" onclick="window.Editor.tool(3)" title="Yellow Pad">
+                    <div class="icon-block c-yel" style="height:4px; margin-top:10px;"></div>
+                </div>
+                <div class="tool" onclick="window.Editor.tool(4)" title="Pink Pad">
+                    <div class="icon-block c-pink" style="height:4px; margin-top:10px;"></div>
+                </div>
+            </div>
+            <div class="tool-group">
+                <div class="tool" onclick="window.Editor.tool(5)" title="Yellow Orb">
+                    <div class="icon-orb c-yel"></div>
+                </div>
+                <div class="tool" onclick="window.Editor.tool(6)" title="Pink Orb">
+                    <div class="icon-orb c-pink"></div>
+                </div>
+            </div>
+            <div class="tool-group">
+                <div class="tool" onclick="window.Editor.tool(7)" title="Ship Portal">
+                    <div class="icon-portal c-org">S</div>
+                </div>
+                <div class="tool" onclick="window.Editor.tool(8)" title="Cube Portal">
+                    <div class="icon-portal c-green">C</div>
+                </div>
+            </div>
+            <div class="tool-group">
+                <div class="tool" onclick="window.Editor.tool(9)" title="Gravity Up">
+                    <div class="icon-portal c-yel grav-up"></div>
+                </div>
+                <div class="tool" onclick="window.Editor.tool(10)" title="Gravity Down">
+                    <div class="icon-portal c-blue grav-down"></div>
+                </div>
+            </div>
+            <div class="tool-group">
+                <button style="width:auto; font-size:0.8rem; padding:5px 10px;"
+                    onclick="window.Editor.test()">TEST</button>
+                <button style="width:auto; font-size:0.8rem; padding:5px 10px; background:#444;"
+                    onclick="window.Game.menu('main')">X</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /** GEODASH LITE - Fixed Scope Version (2.3 Physics) */
+
+        (function () {
+            // --- CONSTANTS (C, formerly K, is now scoped correctly) ---
+            const C = {
+                  // GAMEPLAY SCALED TO 62.5% SPEED (Playable slow-motion)
+                  G: 0.33,           // Cube Gravity
+                  G_SHIP: 0.136,     // Ship Gravity
+                  SHIP_THRUST: -0.234, // Ship Lift Force
+                  JUMP: -9.1,        // Cube Jump
+
+                  // Interactables Forces
+                  PAD_Y: -11.25,     // Yellow Pad Force
+                  PAD_P: -7.5,       // Pink Pad Force
+                  ORB_Y: -8.75,      // Yellow Orb Force (Jump)
+                  ORB_P: -5.6,       // Pink Orb Force (Hop)
+
+                  SPD: 4.5,          // Horizontal Speed (< 5)
+                  BLK: 60,           // Grid Size (60x60 pixels)
+                  TERM: 12           // Max fall speed (Terminal Velocity)
+              };
+
+            // --- OBJECT TYPES ---
+            const T = {
+                EMPTY: 0, BLOCK: 1, SPIKE: 2,
+                PAD_Y: 3, PAD_P: 4,
+                ORB_Y: 5, ORB_P: 6,
+                PORT_SHIP: 7, PORT_CUBE: 8,
+                PORT_GRAV_N: 9, // Normal (Down) Gravity
+                PORT_GRAV_I: 10 // Inverted (Up) Gravity
+            };
+
+            // --- AUDIO (Sfx: Simple Tone.js-like functionality using Web Audio API) ---
+            const Sfx = {
+                ctx: null,
+                isInitialized: false,
+                init() {
+                    if (this.isInitialized) return;
+                    try {
+                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        if (this.ctx.state === 'suspended') this.ctx.resume();
+                        this.isInitialized = true;
+                    } catch (e) {
+                        console.error("Audio Context failed to initialize:", e);
+                    }
+                },
+                play(type) {
+                    if (!this.isInitialized) return;
+
+                    try {
+                        const osc = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        osc.connect(g); g.connect(this.ctx.destination);
+
+                        const now = this.ctx.currentTime;
+                        let gain = 0.1;
+
+                        if (type === 'jump') { osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(300, now + 0.1); }
+                        else if (type === 'die') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.exponentialRampToValueAtTime(10, now + 0.4); gain = 0.2; }
+                        else if (type === 'orb') { osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(600, now + 0.1); }
+                        else if (type === 'portal') { osc.type = 'triangle'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(800, now + 0.3); gain = 0.05; }
+
+                        g.gain.value = gain; osc.start(); osc.stop(now + (type === 'die' ? 0.4 : 0.1));
+                    } catch (e) {
+                        console.warn("Sound failed to play:", type);
+                    }
+                },
+                playRumble() { // Low cinematic hum
+                    if (!this.isInitialized) return;
+                    try {
+                        const now = this.ctx.currentTime;
+                        const osc = this.ctx.createOscillator();
+                        const filter = this.ctx.createBiquadFilter();
+                        const g = this.ctx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(30, now);
+                        osc.frequency.linearRampToValueAtTime(10, now + 3);
+                        filter.type = 'lowpass';
+                        filter.frequency.setValueAtTime(100, now);
+                        g.gain.setValueAtTime(0, now);
+                        g.gain.linearRampToValueAtTime(0.5, now + 1);
+                        g.gain.linearRampToValueAtTime(0, now + 3);
+                        osc.connect(filter); filter.connect(g); g.connect(this.ctx.destination);
+                        osc.start(now); osc.stop(now + 3);
+                    } catch (e) { }
+                },
+                playWhoosh() { // Cinematic white noise jump
+                    if (!this.isInitialized) return;
+                    try {
+                        const now = this.ctx.currentTime;
+                        if (!this.ctx.createBuffer) return;
+                        const bufferSize = this.ctx.sampleRate * 2;
+                        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                        const data = buffer.getChannelData(0);
+                        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                        const noiseSource = this.ctx.createBufferSource();
+                        noiseSource.buffer = buffer;
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = 'bandpass';
+                        filter.frequency.setValueAtTime(200, now);
+                        filter.frequency.exponentialRampToValueAtTime(3000, now + 1.5);
+                        filter.frequency.linearRampToValueAtTime(100, now + 2);
+                        const g = this.ctx.createGain();
+                        g.gain.setValueAtTime(0, now);
+                        g.gain.linearRampToValueAtTime(0.3, now + 0.5);
+                        g.gain.exponentialRampToValueAtTime(0.01, now + 2);
+                        noiseSource.connect(filter); filter.connect(g); g.connect(this.ctx.destination);
+                        noiseSource.start(now);
+                    } catch (e) { }
+                }
+            };
+
+            // --- LEVEL GENERATION (Procedural) ---
+            const LEVELS = [
+                { n: "Stereo Madness", d: "Easy", minLen: 150 },
+                { n: "Back on Track", d: "Normal", minLen: 200 },
+                { n: "Polargeist", d: "Normal", minLen: 250 },
+                { n: "Dry Out", d: "Hard", minLen: 300 },
+            ];
+
+            function genLevel(idx) {
+                const baseLen = LEVELS[idx].minLen + (idx * 50);
+                const len = baseLen + 300; // MUCH longer inverted section
+                // 12 rows (0-11), map[11] is off-screen, map[10] is ground
+                let map = Array(12).fill(0).map(() => Array(len).fill(0));
+
+                let whX = Math.floor(baseLen * 0.45);
+                let bhX = Math.floor(baseLen * 0.75);
+
+                // Always place a solid ground block at row 10, except after black hole where it's row 0
+                for (let c = 0; c < len; c++) {
+                    if (c < bhX) map[10][c] = T.BLOCK;
+                    else map[0][c] = T.BLOCK; // Inverted track
+                }
+
+                let minGap = 5; // Enforce minimum spacing between obstacles
+
+                for (let x = 20; x < len - 20; x++) {
+                    // Skip generating obstacles near the wormhole or black hole
+                    if ((x > whX - 15 && x < whX + 22) || (x > bhX - 15 && x < bhX + 55)) continue;
+
+                    const r = Math.random();
+                    let placed = false;
+                    let groundRow = (x < bhX) ? 9 : 1;
+                    let airRow = (x < bhX) ? 8 : 2;
+
+                    // 1. Floor Spikes
+                    if (r < 0.05) {
+                        map[groundRow][x] = T.SPIKE;
+                        placed = true;
+                    }
+                    // 2. Basic Blocks
+                    else if (r < 0.15) {
+                        map[groundRow][x] = T.BLOCK;
+                        placed = true;
+                    }
+                    // 3. Pads/Orbs (Only in normal gameplay, or rare pink in inverted)
+                    else if (r < 0.18 && x < bhX) { // REMOVED from inverted entirely
+                        map[groundRow][x] = T.PAD_Y;
+                        placed = true;
+                    }
+                    else if (r < 0.21 && x < bhX) { // REMOVED from inverted entirely
+                        map[airRow][x] = T.ORB_Y;
+                        placed = true;
+                    }
+                    else if (r < 0.23 && x >= bhX) { // Very rare pink pad in inverted
+                        map[groundRow][x] = T.PAD_P;
+                        placed = true;
+                    }
+
+                    // 4. Advanced Features (Index dependent)
+                    if (idx >= 1 && x % 40 === 0 && x > 40 && x < bhX && Math.abs(x - whX) > 40 && Math.abs(x - bhX) > 40) {
+                        // Ship Section (only in normal gravity for now)
+                        map[8][x] = T.PORT_SHIP; // Cube -> Ship
+                        map[8][x + 30] = T.PORT_CUBE; // Ship -> Cube
+                    }
+
+                    if (idx >= 2 && x % 50 === 25 && x < bhX) {
+                        // Gravity Portal section
+                        map[5][x] = T.PORT_GRAV_I; // Normal -> Inverted (Up)
+                        map[5][x + 20] = T.PORT_GRAV_N; // Inverted -> Normal (Down)
+                        map[1][x + 10] = T.SPIKE;
+                    }
+
+                    // Spacing validation to improve gameplay readability
+                    if (placed) {
+                        x += minGap + Math.floor(Math.random() * 2);
+                    }
+                }
+
+                // Goal at the end
+                for (let r = 0; r < 11; r++) map[r][len - 5] = T.BLOCK;
+                
+                // Force player back to cube before reaching the cinematics (Wormhole and Black Hole)
+                [3, 5, 7, 9].forEach(r => {
+                    map[r][whX - 10] = T.PORT_CUBE;
+                    map[r][bhX - 10] = T.PORT_CUBE;
+                });
+
+                return map;
+            }
+
+            // --- PHYSICS ENTITIES ---
+            class Player {
+                constructor() {
+                    this.w = 40; this.h = 40;
+                    // Default colors (used in customizer)
+                    this.c1 = '#00ffea'; this.c2 = '#bd00ff';
+                    this.reset();
+                }
+
+                reset() {
+                    this.x = 200; this.y = 10 * C.BLK - this.h; // Start on the ground (row 10)
+                    this.vx = C.SPD; this.vy = 0;
+                    this.mode = 'cube'; // 'cube' or 'ship'
+                    this.gravDir = 1;   // 1 (down) or -1 (up)
+                    this.rot = 0;
+                    this.ground = false;
+                    this.dead = false;
+                    this.win = false;
+                    this.holding = false;
+                    this.jumpCount = 0; // added for double jump system
+                }
+
+                update(objs, input) {
+                    if (this.dead || this.win) return;
+
+                    // Store previous position for collision check
+                    this.px = this.x;
+                    this.py = this.y;
+
+                    // --- Apply Gravity / Thrust ---
+                    let gravity = (this.mode === 'cube') ? C.G : C.G_SHIP;
+
+                    if (this.mode === 'ship') {
+                        if (this.holding) {
+                            this.vy += C.SHIP_THRUST * this.gravDir;
+                        } else {
+                            this.vy += gravity * this.gravDir;
+                        }
+                    } else {
+                        this.vy += gravity * this.gravDir;
+                    }
+
+                    // Terminal Velocity Check
+                    if (Math.abs(this.vy) > C.TERM) this.vy = Math.sign(this.vy) * C.TERM;
+
+                    // --- Move ---
+                    this.vx = C.SPD * (window.Game ? window.Game.speedMult : 1.0);
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // --- Rotation ---
+                    if (this.mode === 'cube') {
+                        if (this.ground) {
+                            this.jumpCount = 0; // Ground touch resets double jump
+                            // Snap rotation to nearest 90 degrees when on ground
+                            let targetRot = Math.round(this.rot / (Math.PI / 2)) * (Math.PI / 2);
+                            this.rot += (targetRot - this.rot) * 0.25;
+                        } else {
+                            this.rot += 0.15 * this.gravDir;
+                        }
+                    } else {
+                        // Ship Rotation
+                        let targetRot = (this.vy * 0.1);
+                        this.rot += (targetRot - this.rot) * 0.1;
+                    }
+
+                    this.ground = false;
+                    this.checkCol(objs, input);
+                }
+
+                checkCol(objs, input) {
+                    if (this.dead || this.win) return;
+
+                    // Player Hitboxes
+                    const pR = { l: this.x, r: this.x + this.w, t: this.y, b: this.y + this.h };
+                    // Reduced hitbox for hazards (spikes) to make gameplay a bit fairer
+                    const pR_Spike = { l: this.x + 8, r: this.x + this.w - 8, t: this.y + 8, b: this.y + this.h - 8 };
+                    // Previous position hitbox
+                    const ppR = { l: this.px, r: this.px + this.w, t: this.py, b: this.py + this.h };
+
+                    // World Bounds Collision (Floor/Ceiling)
+                    const floorY = 11 * C.BLK; // Bottom edge of row 11 (off-screen)
+                    const ceilY = 0;
+
+                    if (this.gravDir === 1) { // Normal Gravity (Down)
+                        if (pR.b > floorY) { this.y = floorY - this.h; this.vy = 0; this.ground = true; }
+                        if (pR.t < ceilY) { this.y = ceilY; this.vy = 0; if (this.mode === 'ship') this.die(); }
+                    } else { // Inverted Gravity (Up)
+                        if (pR.t < ceilY) { this.y = ceilY; this.vy = 0; this.ground = true; }
+                        if (pR.b > floorY) { this.y = floorY - this.h; this.vy = 0; if (this.mode === 'ship') this.die(); }
+                    }
+
+                    // Object Collision
+                    for (let o of objs) {
+                        if (o.broken) continue;
+                        // Optimization: Skip objects far away
+                        if (o.x < this.x - C.BLK || o.x > this.x + C.BLK * 2) continue;
+
+                        const oR = { l: o.x, r: o.x + C.BLK, t: o.y, b: o.y + C.BLK };
+                        let currentPR = (o.t === T.SPIKE) ? pR_Spike : pR;
+
+                        // AABB Collision Check
+                        if (currentPR.r > oR.l && currentPR.l < oR.r && currentPR.b > oR.t && currentPR.t < oR.b) {
+
+                            // --- SOLIDS (BLOCKS) ---
+                            if (o.t === T.BLOCK) {
+                                let yResolution = false;
+                                const EPS = 15; // small tolerance to avoid float/rounding problems
+
+                                // 1. Resolve Vertical Movement (with small tolerance so standing still counts as landed)
+                                if (this.gravDir === 1) { // Normal Gravity
+                                    // Landing on top (player was above or just touching)
+                                    if ((this.vy > 0 && ppR.b <= oR.t + EPS) || (this.vy === 0 && ppR.b <= oR.t + EPS && pR.b <= oR.t + EPS)) {
+                                        this.y = oR.t - this.h; this.vy = 0; this.ground = true; yResolution = true;
+                                    }
+                                    // Hitting head on bottom
+                                    else if ((this.vy < 0 && ppR.t >= oR.b - EPS) || (this.vy === 0 && ppR.t >= oR.b - EPS && pR.t >= oR.b - EPS)) {
+                                        this.y = oR.b; this.vy = 0; yResolution = true;
+                                    }
+                                } else { // Inverted Gravity
+                                    // Landing on bottom (inverted)
+                                    if ((this.vy < 0 && ppR.t >= oR.b - EPS) || (this.vy === 0 && ppR.t >= oR.b - EPS && pR.t >= oR.b - EPS)) {
+                                        this.y = oR.b; this.vy = 0; this.ground = true; yResolution = true;
+                                    }
+                                    // Hitting head on top (inverted)
+                                    else if ((this.vy > 0 && ppR.b <= oR.t + EPS) || (this.vy === 0 && ppR.b <= oR.t + EPS && pR.b <= oR.t + EPS)) {
+                                        this.y = oR.t - this.h; this.vy = 0; yResolution = true;
+                                    }
+                                }
+
+                                // 2. Side Collision Fix ΓÇö only kill if approach is clearly horizontal
+                                if (!yResolution) {
+                                    // Approach detection using previous position with small epsilon to avoid counting exact-touch as side
+                                    const fromLeft = (this.px + this.w) <= oR.l - 1;  // previously fully left of object
+                                    const fromRight = this.px >= oR.r + 1;            // previously fully right of object
+
+                                    // If approaching from left and moving right, or from right and moving left, it's a real wall hit
+                                    if ((fromLeft && this.vx > 0) || (fromRight && this.vx < 0)) {
+                                        this.die();
+                                        return;
+                                    }
+
+                                    // Otherwise ignore collision (likely a landing/overlap due to rounding or small vertical movement)
+                                }
+                            }
+
+                            // --- HAZARDS (SPIKES) ---
+                            else if (o.t === T.SPIKE) {
+                                this.die();
+                            }
+
+                            // --- JUMP PADS (Springs) ---
+                            else if (o.t === T.PAD_Y || o.t === T.PAD_P) {
+                                let padForce = (o.t === T.PAD_Y ? C.PAD_Y : C.PAD_P) * this.gravDir;
+                                // Check if player is on the ground plane of the pad
+                                if (this.ground || (this.mode === 'cube' &&
+                                    (this.gravDir === 1 && ppR.b <= oR.t + 2) || (this.gravDir === -1 && ppR.t >= oR.b - 2))) {
+                                    this.vy = padForce; Sfx.play('jump');
+                                    this.ground = false; // Lift off ground immediately
+                                }
+                            }
+
+                            // --- ORBS (Requires Input) ---
+                            else if (o.t === T.ORB_Y || o.t === T.ORB_P) {
+                                if (input.tap) {
+                                    this.vy = (o.t === T.ORB_Y ? C.ORB_Y : C.ORB_P) * this.gravDir;
+                                    this.ground = false;
+                                    input.tap = false; // Consume tap
+                                    Sfx.play('orb');
+                                }
+                            }
+
+                            // --- PORTALS ---
+                            else if (o.t === T.PORT_SHIP) {
+                                if (this.mode !== 'ship') { this.mode = 'ship'; Sfx.play('portal'); }
+                            }
+                            else if (o.t === T.PORT_CUBE) {
+                                if (this.mode !== 'cube') { this.mode = 'cube'; this.rot = 0; Sfx.play('portal'); }
+                            }
+                            else if (o.t === T.PORT_GRAV_I) {
+                                if (this.gravDir === 1) {
+                                    this.gravDir = -1;
+                                    this.vy = -this.vy * 0.5; // Reverse velocity slightly
+                                    Sfx.play('portal');
+                                }
+                            }
+                            else if (o.t === T.PORT_GRAV_N) {
+                                if (this.gravDir === -1) {
+                                    this.gravDir = 1;
+                                    this.vy = -this.vy * 0.5; // Reverse velocity slightly
+                                    Sfx.play('portal');
+                                }
+                            }
+                        }
+                    }
+
+                    // Mid-level wormhole trigger (approx 600px approach)
+                    if (Game.wormholePhase === 0 && Game.wormholeWorldX > 0) {
+                        let wdx = Game.wormholeWorldX - (this.x + this.w / 2);
+                        if (wdx > 0 && wdx < 600) {
+                            Game.startWormhole();
+                        }
+                    }
+
+                    // Black hole trigger (approx 800px approach)
+                    if (Game.blackholePhase === 0 && Game.blackholeWorldX > 0) {
+                        let bdx = Game.blackholeWorldX - (this.x + this.w / 2);
+                        if (bdx > 0 && bdx < 800) {
+                            Game.startBlackhole();
+                        }
+                    }
+
+                    // Check for Win condition (actual end of level)
+                    if (!this.win && this.x > (LEVELS[Game.currLvl].minLen + (Game.currLvl * 50) + 300 - 10) * C.BLK) {
+                        this.win = true; // Prevents triggering multiple times
+                        Game.onWinComplete();
+                    }
+                }
+
+                // Called by input handler
+                jump() {
+                    if (this.mode === 'cube') {
+                        if (this.ground) {
+                            // First jump from ground
+                            this.vy = C.JUMP * this.gravDir;
+                            this.ground = false;
+                            this.jumpCount = 1;
+                            Sfx.play('jump');
+                        } else if (this.jumpCount < 2) {
+                            // Mid-air second jump
+                            this.vy = C.JUMP * this.gravDir;
+                            this.jumpCount = 2;
+                            this.rot += 0.5 * this.gravDir; // slight spin boost feedback
+                            Sfx.play('jump');
+                        }
+                    }
+                }
+
+                die() {
+                    if (this.dead) return;
+                    this.dead = true;
+                    Sfx.play('die');
+                    Game.shake();
+                    setTimeout(Game.onDeath, 800);
+                }
+            }
+
+            // --- MAIN GAME LOOP AND STATE ---
+            const Game = {
+                cvs: null, ctx: null,
+                p: new Player(),
+                objs: [],
+                state: 'menu',
+                camX: 0, shakeT: 0,
+                input: { hold: false, tap: false },
+                att: 1,
+                currLvl: 0,
+                stars: [],
+                particles: [],
+                nebulae: [],
+                cosmicParticles: [],
+
+                // Phase 4 states
+                wormholeWorldX: 0,
+                wormholeWorldY: 0,
+                wormholePhase: 0, 
+                wormholeT: 0,
+                blackholeWorldX: 0,
+                blackholeWorldY: 0,
+                blackholePhase: 0,
+                blackholeT: 0,
+                speedMult: 1.0,
+                targetSpeedMult: 1.0,
+                trackInverted: false,
+                levelLen: 0,
+
+                init() {
+                    this.cvs = document.getElementById('gameCanvas');
+                    this.ctx = this.cvs.getContext('2d');
+                    window.onresize = () => { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; };
+                    window.onresize();
+
+                    // Init stars for deep space
+                    this.stars = Array.from({ length: 150 }, () => ({
+                        x: Math.random() * 2000,
+                        y: Math.random() * 1000,
+                        s: Math.random() * 2 + 0.5,
+                        p: Math.random() * 0.5 + 0.1
+                    }));
+
+                    // Init Nebulae Clouds
+                    this.nebulae = Array.from({ length: 40 }, () => {
+                        let isBlue = Math.random() > 0.5;
+                        return {
+                            x: Math.random() * 4000,
+                            y: Math.random() * 800 + 100,
+                            r: Math.random() * 300 + 150,
+                            p: Math.random() * 0.2 + 0.05,
+                            c: isBlue ? 'rgba(40, 80, 200, 0.4)' : 'rgba(150, 40, 180, 0.4)'
+                        };
+                    });
+
+                    // Init Cosmic Particles (drifting dust)
+                    this.cosmicParticles = Array.from({ length: 100 }, () => ({
+                        x: Math.random() * 2000,
+                        y: Math.random() * 1000 + 100,
+                        s: Math.random() * 3 + 1,
+                        p: Math.random() * 0.8 + 0.4
+                    }));
+
+                    // Populate Level List in the menu
+                    const l = document.getElementById('level-list');
+                    l.innerHTML = ''; // Clear previous entries
+                    LEVELS.forEach((lvl, i) => {
+                        // Ensure onclick uses the globally accessible name
+                        l.innerHTML += `<div class="level-btn" onclick="window.Game.play(${i})"><b>${lvl.n}</b> <small>${lvl.d}</small></div>`;
+                    });
+
+                    this.setupInput();
+                    this.loop();
+                },
+
+                setupInput() {
+                    // Input Setup (Works for both desktop keypress and mobile touch)
+                    const down = (e) => {
+                        if (this.state !== 'play') return;
+                        if (e.type === 'touchstart' || e.type === 'mousedown') e.preventDefault();
+                        if (e.repeat) return; // Prevent infinite jumping triggers when holding space
+
+                        Sfx.init();
+                        this.input.hold = true;
+                        this.input.tap = true;
+                        this.p.holding = true;
+                        this.p.jump();
+                    };
+                    const up = () => { this.input.hold = false; this.p.holding = false; };
+
+                    // Keyboard controls
+                    window.onkeydown = (e) => {
+                        if (e.code === 'Space' || e.code === 'ArrowUp') down(e);
+                        if (e.code === 'Escape') this.pause();
+                    };
+                    window.onkeyup = (e) => {
+                        if (e.code === 'Space' || e.code === 'ArrowUp') up();
+                    };
+
+                    // Touch/Mouse controls for gameplay
+                    const touch = document.getElementById('mobile-controls');
+                    touch.onmousedown = down; touch.onmouseup = up;
+                    touch.ontouchstart = down; touch.ontouchend = up;
+                },
+
+                play(idx) {
+                    if (idx !== undefined) this.currLvl = idx;
+                    const data = genLevel(this.currLvl);
+                    this.load(data);
+                },
+
+                load(map) {
+                    this.objs = [];
+                    this.levelLen = map[0].length;
+                    for (let r = 0; r < 12; r++) {
+                        for (let c = 0; c < map[r].length; c++) {
+                            if (map[r][c] !== 0) this.objs.push({ x: c * C.BLK, y: r * C.BLK, t: map[r][c], r: r, c: c });
+                        }
+                    }
+                    
+                    // Place set pieces at actual level progression points (using baseLen)
+                    let baseLen = LEVELS[this.currLvl].minLen + (this.currLvl * 50);
+                    this.wormholeWorldX = Math.floor(baseLen * 0.45) * C.BLK; // Matches whX exactly!
+                    this.wormholeWorldY = 5 * C.BLK;
+                    this.blackholeWorldX = Math.floor(baseLen * 0.75) * C.BLK; // Matches bhX exactly!
+                    this.blackholeWorldY = 5 * C.BLK;
+
+                    this.restart(true);
+                },
+
+                restart(full = false) {
+                    this.p.reset();
+                    this.camX = 0;
+                    this.input.hold = false;
+                    this.state = 'play';
+                    
+                    this.wormholePhase = 0;
+                    this.wormholeT = 0;
+                    this.blackholePhase = 0;
+                    this.blackholeT = 0;
+                    this.speedMult = 1.0;
+                    this.targetSpeedMult = 1.0;
+                    this.trackInverted = false;
+                    // Reset cracked blocks
+                    this.objs.forEach(o => { o.cracked = false; o.broken = false; });
+                    document.querySelectorAll('.menu-screen').forEach(e => e.classList.remove('active'));
+                    document.getElementById('editor-ui').classList.remove('active');
+                    document.getElementById('hud').style.display = 'block';
+                    document.getElementById('mobile-controls').style.display = 'block';
+                    if (!full) this.att++;
+                    document.getElementById('att').innerText = this.att;
+                },
+
+                pause() {
+                    if (this.state !== 'play') return;
+                    this.state = 'pause';
+                    document.getElementById('m-pause').classList.add('active');
+                    document.getElementById('p-title').innerText = "PAUSED";
+                    document.getElementById('btn-resume').style.display = "inline-block";
+                    document.getElementById('mobile-controls').style.display = 'none';
+                },
+
+                resume() {
+                    this.state = 'play';
+                    document.getElementById('m-pause').classList.remove('active');
+                    document.getElementById('mobile-controls').style.display = 'block';
+                },
+
+                onDeath() {
+                    Game.state = 'pause';
+                    document.getElementById('m-pause').classList.add('active');
+                    document.getElementById('p-title').innerText = "CRASHED";
+                    document.getElementById('btn-resume').style.display = "none"; // Hide resume button
+                    document.getElementById('mobile-controls').style.display = 'none';
+                },
+
+                startWormhole() {
+                    this.wormholePhase = 1; // 1 = approach
+                    this.state = 'wormhole';
+                    this.wormholeT = 0;
+                    this.wormholeX = this.wormholeWorldX; 
+                    this.wormholeY = this.wormholeWorldY; 
+                    Sfx.playRumble();
+                },
+
+                startBlackhole() {
+                    this.blackholePhase = 1;
+                    this.state = 'blackhole';
+                    this.blackholeT = 0;
+                    this.blackholeX = this.blackholeWorldX;
+                    this.blackholeY = this.blackholeWorldY;
+                    Sfx.playRumble();
+                },
+
+                onWinComplete() {
+                    Game.state = 'pause';
+                    document.getElementById('m-pause').classList.add('active');
+                    document.getElementById('p-title').innerText = "LEVEL COMPLETE!";
+                    document.getElementById('btn-resume').style.display = "none";
+                    document.getElementById('mobile-controls').style.display = 'none';
+                },
+
+                menu(id) {
+                    this.state = 'menu';
+                    document.querySelectorAll('.menu-screen').forEach(e => e.classList.remove('active'));
+                    document.getElementById('hud').style.display = 'none';
+                    document.getElementById('editor-ui').classList.remove('active');
+                    document.getElementById('mobile-controls').style.display = 'none';
+
+                    if (id === 'main') document.getElementById('m-main').classList.add('active');
+                    if (id === 'levels') document.getElementById('m-levels').classList.add('active');
+                    if (id === 'cust') {
+                        document.getElementById('m-cust').classList.add('active');
+                        this.updIcon();
+                    }
+                },
+
+                editor() {
+                    this.menu('none'); // Hides all menus
+                    this.state = 'editor';
+                    Editor.init();
+                    document.getElementById('editor-ui').classList.add('active');
+                },
+
+                loop() {
+                    // --- Clear Background ---
+                    let bgColor = '#02091a'; // Phase 3 Default
+                    
+                    if (this.wormholePhase >= 2) {
+                        bgColor = '#0a0a2a'; // Deep navy / dark blue
+                    }
+                    if (this.blackholePhase >= 2) {
+                        bgColor = '#05021a'; // Inverted dark space (deep dark purple/navy)
+                    }
+
+                    this.ctx.fillStyle = bgColor;
+                    this.ctx.fillRect(0, 0, this.cvs.width, this.cvs.height);
+
+                    if (this.state === 'play' || this.state === 'wormhole' || this.state === 'blackhole') {
+                        // Background Parallax
+                        let vx = (this.state === 'wormhole' || this.state === 'blackhole') ? 0 : this.p.vx;
+                        
+                        let vy = 0;
+                        if (this.state === 'wormhole' && this.wormholeT > 240 && this.wormholeT < 480) vy = -20;
+                        if (this.state === 'blackhole' && this.blackholeT > 240) vy = -30; // Stronger vertical streak for black hole
+                        
+                        this.stars.forEach(s => { s.x -= vx * s.p * 0.1; s.y += vy * s.p * 0.5; if (s.y < 0) s.y += 2000; });
+                        this.nebulae.forEach(n => { n.x -= vx * n.p * 0.1; n.y += vy * n.p * 0.1; if (n.y < -500) n.y += 3000; });
+                        this.cosmicParticles.forEach(cp => {
+                            cp.x -= vx * cp.p * 0.1;
+                            cp.y += Math.sin(Date.now() * 0.001 + cp.x) * 0.5 + vy;
+                            if (cp.y < 0) cp.y += 2000;
+                        });
+                    }
+
+                    // --- Update ---
+                    if (this.state === 'play') {
+                        if (this.speedMult < this.targetSpeedMult) {
+                              this.speedMult += 0.002;
+                              if (this.speedMult > this.targetSpeedMult) this.speedMult = this.targetSpeedMult;
+                          } else if (this.speedMult > this.targetSpeedMult) {
+                              this.speedMult -= 0.002;
+                              if (this.speedMult < this.targetSpeedMult) this.speedMult = this.targetSpeedMult;
+                          }
+
+                        if (this.wormholeWorldX > 0 && this.wormholePhase === 0) {
+                            let dist = this.wormholeWorldX - this.p.x;
+                            if (dist > 0 && dist < 1200) {
+                                this.shakeT = Math.max(this.shakeT, (1200 - dist) * 0.002);
+                            }
+                        }
+                        if (this.blackholeWorldX > 0 && this.blackholePhase === 0) {
+                            let dist = this.blackholeWorldX - this.p.x;
+                            if (dist > 0 && dist < 1200) {
+                                this.shakeT = Math.max(this.shakeT, (1200 - dist) * 0.003);
+                            }
+                        }
+
+                        this.p.update(this.objs, this.input);
+                        this.input.tap = false; // Reset tap
+                        this.camX = this.p.x - 200; // Follow player
+
+                        this.particles.push({ x: this.p.x + this.p.w / 2, y: this.p.y + this.p.h / 2, life: 1.0 });
+                        this.particles.forEach(p => p.life -= 0.05);
+                        this.particles = this.particles.filter(p => p.life > 0);
+                    } else if (this.state === 'wormhole') {
+                        this.wormholeT++;
+                        let wt = this.wormholeT;
+                        
+                        let dx = this.wormholeX - (this.p.x + this.p.w/2);
+                        let dy = this.wormholeY - (this.p.y + this.p.h/2);
+                        let dist = Math.max(10, Math.sqrt(dx * dx + dy * dy));
+                        
+                        if (wt < 240) {
+                            let pullForce = wt * 0.005;
+                            this.p.x += (dx / dist) * pullForce;
+                            this.camX += ((this.p.x - 200) - this.camX) * 0.1;
+                            
+                            if (wt > 120) {
+                                this.objs.forEach(o => {
+                                    if (o.t === T.BLOCK && Math.abs(o.x - this.p.x) < 100 && o.y > this.p.y) o.cracked = true;
+                                });
+                            }
+                            if (wt === 240) {
+                                this.objs.forEach(o => {
+                                    if (o.t === T.BLOCK && Math.abs(o.x - this.p.x) < 100 && o.y > this.p.y) o.broken = true;
+                                });
+                                Game.shakeT = 15;
+                                Sfx.playRumble();
+                            }
+                        } else {
+                              let fallSpeed = Math.min(20, (wt - 240) * 0.15);
+                              this.p.y += fallSpeed;
+                              this.p.rot += 0.2;
+                              
+                              if (wt === 600) {
+                                  this.p.x = this.wormholeX + 300;
+                                  this.p.y = 10 * C.BLK - (120 * 20); // Teleport high up in new area
+                                  this.camX = this.p.x - 200;
+                              }
+                              
+                              if (wt < 600) {
+                                  let targetCamX = this.p.x - 200;
+                                  this.camX += (targetCamX - this.camX) * 0.1;
+                                  this.wormholeCamYOffset = (wt - 240) * 1.5; 
+                              } else {
+                                  let exitLerp = (wt - 600) / 120;
+                                  let startOffset = (600 - 240) * 1.5;
+                                  this.wormholeCamYOffset = startOffset * (1 - exitLerp); // Smoothly lower camera
+                                  let targetCamX = this.p.x - 200;
+                                  this.camX += (targetCamX - this.camX) * 0.1;
+                              }
+                              this.shakeT = 5;
+                          }
+
+                        if (wt === 360) Sfx.playWhoosh();
+
+                        if (wt > 720) {
+                            this.state = 'play';
+                            this.wormholePhase = 2;
+                            this.p.scale = 1;
+                            this.p.vy = 0;
+                            this.targetSpeedMult = 1.05;
+                              this.wormholeExitFade = 1.0; // Trigger smooth fade-in
+                            
+                            this.p.x = this.wormholeX + 300;
+                            this.p.y = 10 * C.BLK - this.p.h;
+                            this.p.rot = 0;
+                            this.p.ground = true;
+                            this.p.jumpCount = 1;
+                            
+                            this.camX = this.p.x - 200;
+                            this.wormholeCamYOffset = 0;
+                      this.wormholeExitFade = 0;
+                            
+                            for (let i = 0; i < 40; i++) {
+                                this.objs.push({ x: this.p.x + (i - 5) * C.BLK, y: 10 * C.BLK, t: T.BLOCK });
+                            }
+                        }
+                    } else if (this.state === 'blackhole') {
+                        this.blackholeT++;
+                        let bt = this.blackholeT;
+                        
+                        let dx = this.blackholeX - (this.p.x + this.p.w/2);
+                        let dy = this.blackholeY - (this.p.y + this.p.h/2);
+                        let dist = Math.max(10, Math.sqrt(dx * dx + dy * dy));
+
+                        if (bt < 240) {
+                              // Smooth suction approach
+                              let pullForce = 2 + bt * 0.1; // Less aggressive pull
+                              this.p.x += (dx / dist) * pullForce;
+                              this.p.y += (dy / dist) * pullForce;
+                              this.p.rot += 0.2;
+                              this.p.scale = Math.max(0.2, 1 - (bt / 300)); // Don't shrink entirely
+                              
+                              let targetCamX = this.blackholeX - this.cvs.width / 2;
+                              this.camX += (targetCamX - this.camX) * 0.05;
+                              this.shakeT = 2 + (bt / 25);
+                          } else {
+                              if (bt === 240) {
+                                  this.trackInverted = true;
+                                  this.p.gravDir = -1;
+                                  this.p.ground = false;
+                                  // DON'T teleport X! Just keep forward momentum
+                                  for (let i = -5; i < 35; i++) {
+                                      this.objs.push({ x: this.p.x + i * C.BLK, y: 0 * C.BLK, t: T.BLOCK });
+                                  }
+                              }
+                              // We let update() physics handle them falling up to the ceiling naturally!
+                              this.p.update(this.objs, this.input); // Player runs upside down!
+                              
+                              let targetCamX = this.p.x - 200;
+                              this.camX += (targetCamX - this.camX) * 0.1;
+                              this.p.scale = 0.7; // Fixed scale
+                          }
+
+                        if (bt === 240) Sfx.playWhoosh();
+
+                        if (bt > 360) {
+                              this.state = 'play';
+                              this.blackholePhase = 2; // complete
+                                
+                                // --- DEFENSIVE 10-SECOND SAFE ZONE FILTER ---
+                                // Speed is 4.275 px/f. 10 seconds = 600 frames = 2565 pixels.
+                                let safeStartX = this.p.x;
+                                let safeEndX = this.p.x + 2565;
+                                this.objs = this.objs.filter(o => {
+                                    if (o.x >= safeStartX && o.x <= safeEndX) {
+                                        if (o.y === 0) return true;
+                                        if (o.y === 10 * C.BLK) return true;
+                                        return false; // Physically remove any other hazards
+                                    }
+                                    return true;
+                                });
+                                // Make sure scale is locked
+                              this.p.scale = 0.7;
+                              this.targetSpeedMult = 0.95; // Slightly reduce speed for post-black-hole gameplay
+                        }
+                    }
+
+                    // --- Draw Setup ---
+                    this.ctx.save();
+                    let shake = 0;
+                    if (this.shakeT > 0) { shake = (Math.random() - 0.5) * 15; this.shakeT--; }
+
+                    let cx = (this.state === 'editor') ? Editor.cx : this.camX;
+                    let floorScreenY = this.cvs.height - 200;
+                    
+                    let targetCy = (11 * C.BLK) - floorScreenY;
+                    let targetZoom = 1.0;
+                    
+                    if (this.trackInverted || this.blackholePhase >= 2) {
+                        let invFloorScreenY = this.cvs.height * 0.15; 
+                        targetCy = (1 * C.BLK) - invFloorScreenY;
+                        targetZoom = 0.85; // Zoom out effect for inverted track
+                    }
+                    
+                    let cy = targetCy;
+                    let zoom = targetZoom;
+
+                    if (this.state === 'blackhole') {
+                        let bt = this.blackholeT;
+                        if (bt < 240) {
+                            // Normal cy, but world collapses
+                            cy = (11 * C.BLK) - floorScreenY;
+                        } else if (bt < 360) {
+                              // Smoothly transition cy (Track shifts upward) FAST
+                            let lerp = (bt - 240) / 120;
+                            cy = ((11 * C.BLK) - floorScreenY) * (1 - lerp) + targetCy * lerp;
+                            // Zoom out while flipping
+                            zoom = 1.0 * (1 - lerp) + targetZoom * lerp;
+                        }
+                    }
+
+                    if (this.wormholeCamYOffset) {
+                        cy += this.wormholeCamYOffset;
+                    }
+
+                    this.ctx.translate(Math.floor(-cx + shake), Math.floor(-cy + shake));
+
+                    // --- World Collapse/Expansion Effect ---
+                      if (this.trackInverted || this.blackholePhase >= 2) {
+                        // Maintain zoomed-out effect globally for inverted gameplay
+                        this.ctx.translate(cx + this.cvs.width/2, cy + this.cvs.height/2);
+                        this.ctx.scale(zoom, zoom);
+                        this.ctx.translate(-(cx + this.cvs.width/2), -(cy + this.cvs.height/2));
+                    }
+
+                    // --- Draw World ---
+                    this.drawWorld(cx, cy);
+
+                    // --- Draw Objects ---
+                    let viewL = cx - C.BLK * 2, viewR = cx + this.cvs.width * 2 + C.BLK * 2; // Expanded view for zoom out
+                    for (let o of this.objs) {
+                        if (o.x < viewL || o.x > viewR) continue;
+                        this.drawObj(o);
+                    }
+
+                    if (this.state !== 'editor') {
+                        this.drawPlayer();
+                    }
+
+                    this.ctx.restore();
+                    
+                    // --- Draw UI Overlay ---// --- Draw UI Overlay ---
+                    if (this.state === 'wormhole') {
+                        let wt = this.wormholeT;
+                        if (wt > 240 && wt < 600) {
+                            let alpha = Math.min(1, (wt - 480) / 240);
+                            if (wt > 480) alpha = Math.max(0, 1 - (wt - 480) / 120);
+                            this.ctx.save();
+                            this.ctx.fillStyle = `rgba(0, 255, 234, ${alpha})`;
+                            this.ctx.font = 'bold 48px Roboto';
+                            this.ctx.textAlign = 'center';
+                            this.ctx.shadowBlur = 20;
+                            this.ctx.shadowColor = '#bd00ff';
+                            this.ctx.fillText("YOU HAVE ENTERED A WORMHOLE", this.cvs.width / 2, this.cvs.height / 3);
+                            this.ctx.restore();
+                        }
+                    } else if (this.state === 'blackhole') {
+                        let bt = this.blackholeT;
+                        if (bt > 120 && bt < 360) {
+                              let alpha = Math.min(1, (bt - 120) / 120);
+                              if (bt > 240) alpha = Math.max(0, 1 - (bt - 240) / 120); // Fade out quickly as you enter
+                            this.ctx.save();
+                            this.ctx.fillStyle = `rgba(189, 0, 255, ${alpha})`;
+                            this.ctx.font = 'bold 48px Roboto';
+                            this.ctx.textAlign = 'center';
+                            this.ctx.shadowBlur = 20;
+                            this.ctx.shadowColor = '#00ffea';
+                            this.ctx.fillText("YOU HAVE ENTERED BLACKHOLE", this.cvs.width / 2, this.cvs.height / 3);
+                            this.ctx.restore();
+                        }
+                    }
+
+                    if (this.state === 'play' && this.wormholeExitFade > 0) {
+                        this.wormholeExitFade -= 0.015; // Smooth fade out
+                        this.ctx.fillStyle = 
+gba(255,255,255,);
+                        this.ctx.fillRect(0, 0, this.cvs.width, this.cvs.height);
+                    }
+                    
+                    if (this.state === 'editor') {
+                        Editor.drawUI(this.ctx);
+                    }
+
+                    requestAnimationFrame(() => this.loop());
+                },
+
+                drawWorld(cx, cy) {
+                    this.ctx.fillStyle = 'white';
+                    for (let s of this.stars) {
+                        let sx = ((s.x - cx * s.p) % 2000 + 2000) % 2000;
+                        let sy = s.y;
+                        
+                        let stretch = (this.state === 'wormhole' && this.wormholeT > 240) || (this.state === 'blackhole' && this.blackholeT > 240) ? 60 : s.s;
+                        this.ctx.beginPath();
+                        if (stretch > s.s) {
+                            this.ctx.ellipse(cx + sx, cy + sy, s.s, stretch, 0, 0, Math.PI * 2);
+                        } else {
+                            this.ctx.arc(cx + sx, cy + sy, s.s, 0, Math.PI * 2);
+                        }
+                        this.ctx.fill();
+                    }
+
+                    this.ctx.globalCompositeOperation = 'screen';
+                    for (let n of this.nebulae) {
+                        let nx = ((n.x - cx * n.p) % 3000 + 3000) % 3000;
+                        let pulse = 1 + Math.sin(Date.now() * 0.001 + n.x) * 0.2;
+                        
+                        let col = n.c;
+                        if (this.blackholePhase >= 2) {
+                            col = col.replace('0, 255, 234', '50, 150, 255'); // Deep blue for inverted space
+                        } else if (this.wormholePhase >= 2) {
+                            col = col.replace('0, 255, 234', '150, 0, 255');
+                        }
+                        
+                        let grad = this.ctx.createRadialGradient(cx + nx, cy + n.y, 0, cx + nx, cy + n.y, n.r);
+                        grad.addColorStop(0, col.replace('0.4', String(0.6 * pulse)));
+                        grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+                        this.ctx.fillStyle = grad;
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx + nx, cy + n.y, n.r, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                    this.ctx.globalCompositeOperation = 'source-over';
+
+                    this.ctx.fillStyle = '#00ffea';
+                    for (let cp of this.cosmicParticles) {
+                        let cpx = ((cp.x - cx * cp.p) % 2000 + 2000) % 2000;
+                        let stretch = (this.state === 'wormhole' && this.wormholeT > 240) || (this.state === 'blackhole' && this.blackholeT > 240) ? 60 : cp.s;
+                        this.ctx.beginPath();
+                        if (stretch > cp.s) {
+                            this.ctx.ellipse(cx + cpx, cy + cp.y, cp.s, stretch, 0, 0, Math.PI * 2);
+                        } else {
+                            this.ctx.arc(cx + cpx, cy + cp.y, cp.s, 0, Math.PI * 2);
+                        }
+                        this.ctx.fill();
+                    }
+
+                    for (let p of this.particles) {
+                        this.ctx.fillStyle = `rgba(0, 255, 234, ${p.life})`;
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.life * 8, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+
+                    let floorColor = (this.blackholePhase >= 2) ? 'rgba(15, 10, 30, 0.9)' : (this.wormholePhase >= 2) ? 'rgba(30, 10, 50, 0.9)' : 'rgba(21, 15, 38, 0.9)';
+                    let edgeColor = (this.blackholePhase >= 2) ? '#00ccff' : (this.wormholePhase >= 2) ? '#ff00aa' : '#bd00ff';
+                    let glowColor = (this.blackholePhase >= 2) ? '#5500ff' : (this.wormholePhase >= 2) ? '#ff00aa' : '#00ffea';
+
+                    let groundY = 11 * C.BLK;
+                    this.ctx.fillStyle = floorColor; 
+                    this.ctx.fillRect(cx, groundY, this.cvs.width, 1000);
+                    this.ctx.strokeStyle = edgeColor;
+                    this.ctx.lineWidth = 4;
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.shadowColor = glowColor;
+                    this.ctx.beginPath(); this.ctx.moveTo(cx, groundY); this.ctx.lineTo(cx + this.cvs.width, groundY); this.ctx.stroke();
+                    this.ctx.shadowBlur = 0;
+
+                    let ceilY = 0;
+                    this.ctx.fillStyle = floorColor;
+                    this.ctx.fillRect(cx, ceilY - 1000, this.cvs.width, 1000);
+                    this.ctx.strokeStyle = edgeColor;
+                    this.ctx.lineWidth = 4;
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.shadowColor = glowColor;
+                    this.ctx.beginPath(); this.ctx.moveTo(cx, ceilY); this.ctx.lineTo(cx + this.cvs.width, ceilY); this.ctx.stroke();
+                    this.ctx.shadowBlur = 0;
+
+                    // ---- WORMHOLE VISUAL ----
+                    const isWHAmbient = (this.state === 'play' || this.state === 'pause') && this.wormholeWorldX > 0 && this.wormholePhase < 2;
+                    const isWHCinematic = this.state === 'wormhole';
+
+                    if (isWHAmbient || isWHCinematic) {
+                        let now = Date.now();
+                        let wh_cx = cx + (isWHCinematic ? this.wormholeX : this.wormholeWorldX);
+                        let wh_cy = cy + (isWHCinematic ? this.wormholeY : this.wormholeWorldY);
+
+                        let wt = isWHCinematic ? this.wormholeT : 0;
+                        let distToPlayer = Math.abs(this.wormholeWorldX - this.p.x);
+                        let intensity = (isWHAmbient && distToPlayer < 1200) ? Math.max(0, 1 - distToPlayer / 1200) : (isWHCinematic ? 1 : 0.1);
+                        
+                        let ambR = (100 + Math.sin(now * 0.001) * 15) * (0.5 + 0.5 * intensity); 
+                        let cinR = isWHCinematic ? Math.min(450, wt * 2) : 0;
+                        let wr = isWHCinematic ? Math.max(ambR, cinR) : ambR;
+
+                        this.ctx.save();
+                        
+                        if (isWHCinematic && wt > 200) {
+                            this.ctx.translate(cx + this.cvs.width/2, cy + this.cvs.height/2 + this.wormholeCamYOffset);
+                        } else {
+                            this.ctx.translate(wh_cx, wh_cy);
+                        }
+
+                        let voidR = wr * 0.35;
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, voidR, 0, Math.PI * 2);
+                        this.ctx.fillStyle = '#000005';
+                        this.ctx.fill();
+
+                        let grad = this.ctx.createRadialGradient(0, 0, voidR * 0.5, 0, 0, wr);
+                        grad.addColorStop(0,    'rgba(0,0,15,1)');
+                        grad.addColorStop(0.25, 'rgba(0,255,234,0.7)');
+                        grad.addColorStop(0.55, 'rgba(189,0,255,0.5)');
+                        grad.addColorStop(0.85, 'rgba(100,0,200,0.2)');
+                        grad.addColorStop(1,    'rgba(0,0,0,0)');
+
+                        this.ctx.globalCompositeOperation = 'screen';
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, wr, 0, Math.PI * 2);
+                        this.ctx.fillStyle = grad;
+                        this.ctx.fill();
+                        this.ctx.globalCompositeOperation = 'source-over';
+
+                        let ringAlpha = (isWHCinematic ? Math.min(1, wt / 120) : 0.7) * intensity;
+                        const rings = [
+                            { rx: wr * 1.1, ry: wr * 0.12, spd: 0.002, col: `rgba(0,255,234,${ringAlpha})`, lw: 3 },
+                            { rx: wr * 0.90, ry: wr * 0.08, spd: -0.003, col: `rgba(189,0,255,${ringAlpha * 0.9})`, lw: 2 },
+                            { rx: wr * 0.70, ry: wr * 0.18, spd: 0.004, col: `rgba(255,255,255,${ringAlpha * 0.6})`, lw: 2 }
+                        ];
+                        for (let rg of rings) {
+                            this.ctx.save();
+                            this.ctx.rotate(now * rg.spd);
+                            this.ctx.beginPath();
+                            this.ctx.ellipse(0, 0, rg.rx, rg.ry, 0, 0, Math.PI * 2);
+                            this.ctx.strokeStyle = rg.col;
+                            this.ctx.lineWidth = rg.lw;
+                            this.ctx.stroke();
+                            this.ctx.restore();
+                        }
+                        this.ctx.restore();
+
+                        if (isWHCinematic) {
+                            if (wt > 480) {
+                                let fade = Math.min(1, (wt - 480) / 240);
+                                this.ctx.fillStyle = `rgba(255,255,255,${fade})`;
+                                this.ctx.fillRect(cx, cy - 2000, this.cvs.width, 4000);
+                            }
+                        }
+                    }
+
+                    // ---- BLACK HOLE VISUAL ----
+                    const isBHAmbient = (this.state === 'play' || this.state === 'pause') && this.blackholeWorldX > 0 && this.blackholePhase < 2;
+                    const isBHCinematic = this.state === 'blackhole';
+
+                    if (isBHAmbient || isBHCinematic) {
+                        let now = Date.now();
+                        let bh_cx = cx + (isBHCinematic ? this.blackholeX : this.blackholeWorldX);
+                        let bh_cy = cy + (isBHCinematic ? this.blackholeY : this.blackholeWorldY);
+
+                        let bt = isBHCinematic ? this.blackholeT : 0;
+                        let ambR = 150 + Math.sin(now * 0.0008) * 10;
+                        let cinR = isBHCinematic ? Math.min(600, bt * 2.5) : 0;
+                        let br = isBHCinematic ? Math.max(ambR, cinR) : ambR;
+
+                        this.ctx.save();
+                        this.ctx.translate(bh_cx, bh_cy);
+                        
+                        this.ctx.globalCompositeOperation = 'screen';
+                        let haloGrad = this.ctx.createRadialGradient(0, 0, br * 0.3, 0, 0, br);
+                        haloGrad.addColorStop(0, 'rgba(100, 50, 255, 0.8)'); // Purple/blue/cyan energy
+                        haloGrad.addColorStop(0.4, 'rgba(50, 200, 255, 0.4)');
+                        haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, br, 0, Math.PI * 2);
+                        this.ctx.fillStyle = haloGrad;
+                        this.ctx.fill();
+                        this.ctx.globalCompositeOperation = 'source-over';
+
+                        let evR = br * 0.4;
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, 0, evR, 0, Math.PI * 2);
+                        this.ctx.fillStyle = '#000000';
+                        this.ctx.fill();
+                        this.ctx.lineWidth = 2;
+                        this.ctx.strokeStyle = 'rgba(100,200,255,0.5)';
+                        this.ctx.stroke();
+
+                        let diskAlpha = isBHCinematic ? Math.min(1, bt / 120) : 0.8;
+                        this.ctx.rotate(Math.PI / 8);
+                        const bhRings = [
+                            { rx: br * 1.2, ry: br * 0.15, spd: 0.002, col: `rgba(150,100,255,${diskAlpha})`, lw: 5 },
+                            { rx: br * 0.9, ry: br * 0.1, spd: 0.003, col: `rgba(100,200,255,${diskAlpha})`, lw: 3 }
+                        ];
+                        for (let rg of bhRings) {
+                            this.ctx.save();
+                            this.ctx.rotate(now * rg.spd);
+                            this.ctx.beginPath();
+                            this.ctx.ellipse(0, 0, rg.rx, rg.ry, 0, 0, Math.PI * 2);
+                            this.ctx.strokeStyle = rg.col;
+                            this.ctx.lineWidth = rg.lw;
+                            this.ctx.stroke();
+                            this.ctx.restore();
+                        }
+                        this.ctx.restore();
+
+                        if (isBHCinematic && bt > 240) {
+                            let fade = Math.min(1, (bt - 240) / 120);
+                            this.ctx.fillStyle = `rgba(0, 0, 0, ${fade})`;
+                            this.ctx.fillRect(cx, cy - 2000, this.cvs.width, 4000);
+                        }
+                    }
+                },
+
+                drawObj(o) {
+                    if (o.broken) return;
+                    const x = o.x, y = o.y, s = C.BLK;
+                    const c = this.ctx;
+
+                    if (o.t === T.BLOCK) {
+                        let baseColor = (this.blackholePhase >= 2) ? '#101a33' : (this.wormholePhase >= 2) ? '#2a1a44' : '#201633';
+                        let strokeColor = (this.blackholePhase >= 2) ? '#00ccff' : (this.wormholePhase >= 2) ? '#ff00aa' : '#bd00ff';
+                        let coreColor = (this.blackholePhase >= 2) ? 'rgba(0, 204, 255, 0.2)' : (this.wormholePhase >= 2) ? 'rgba(255, 0, 170, 0.2)' : 'rgba(0, 255, 234, 0.2)';
+                        let starColor = (this.blackholePhase >= 2) ? '#5500ff' : (this.wormholePhase >= 2) ? '#ff00aa' : '#00ffea';
+
+                        c.fillStyle = baseColor; c.fillRect(x, y, s, s);
+                        c.strokeStyle = strokeColor; c.lineWidth = 2; c.strokeRect(x, y, s, s);
+
+                        c.fillStyle = coreColor;
+                        c.fillRect(x + 6, y + 6, s - 12, s - 12);
+
+                        c.fillStyle = starColor;
+                        c.fillRect(x + s * 0.2, y + s * 0.25, 2, 2);
+                        c.fillRect(x + s * 0.5, y + s * 0.66, 2, 2);
+                        c.fillRect(x + s * 0.66, y + s * 0.33, 2, 2);
+                        
+                        if (o.cracked) {
+                            c.strokeStyle = '#fff'; c.lineWidth = 3;
+                            c.beginPath(); c.moveTo(x + 10, y); c.lineTo(x + 20, y + 20); c.lineTo(x + 10, y + 40); c.stroke();
+                            c.beginPath(); c.moveTo(x + 40, y + 10); c.lineTo(x + 30, y + 30); c.lineTo(x + 45, y + 50); c.stroke();
+                        }
+                    }
+                    else if (o.t === T.SPIKE) {
+                        let isCeil = (y < 5 * C.BLK);
+                        let grad = c.createLinearGradient(x, isCeil ? y : y + s, x + s / 2, isCeil ? y + s : y);
+                        
+                        if (this.blackholePhase >= 2) {
+                            grad.addColorStop(0, '#00ccff'); grad.addColorStop(1, '#5500ff');
+                        } else if (this.wormholePhase >= 2) {
+                            grad.addColorStop(0, '#ff00aa'); grad.addColorStop(1, '#ffaaaa');
+                        } else {
+                            grad.addColorStop(0, '#bd00ff'); grad.addColorStop(1, '#00ffea');
+                        }
+                        
+                        c.fillStyle = grad; 
+                        c.beginPath(); 
+                        if (isCeil) { c.moveTo(x, y); c.lineTo(x + s / 2, y + s); c.lineTo(x + s, y); } 
+                        else { c.moveTo(x, y + s); c.lineTo(x + s / 2, y); c.lineTo(x + s, y + s); }
+                        c.closePath(); c.fill();
+                        
+                        c.strokeStyle = '#fff'; c.lineWidth = 1; c.stroke();
+                        c.fillStyle = '#fff'; c.beginPath(); 
+                        if (isCeil) { c.moveTo(x + s / 4, y); c.lineTo(x + s / 2, y + s / 2 - 5); c.lineTo(x + s * 3 / 4, y); } 
+                        else { c.moveTo(x + s / 4, y + s); c.lineTo(x + s / 2, y + s / 2 + 5); c.lineTo(x + s * 3 / 4, y + s); }
+                        c.fill();
+                    }
+                    else if (o.t === T.PAD_Y || o.t === T.PAD_P) {
+                        c.fillStyle = (o.t === T.PAD_Y) ? '#eaff00' : '#ff00ea';
+                        c.fillRect(x + 10, y + s - 10, s - 20, 10);
+                        c.strokeStyle = '#fff'; c.lineWidth = 2;
+                        c.beginPath(); c.moveTo(x + 20, y + s - 10); c.lineTo(x + 20, y + s - 20); c.stroke();
+                        c.beginPath(); c.moveTo(x + 40, y + s - 10); c.lineTo(x + 40, y + s - 20); c.stroke();
+                    }
+                    else if (o.t === T.ORB_Y || o.t === T.ORB_P) {
+                        let pulse = Math.sin(Date.now() * 0.005 + x) * 2;
+                        c.fillStyle = (o.t === T.ORB_Y) ? '#eaff00' : '#ff00ea';
+                        c.beginPath(); c.arc(x + s / 2, y + s / 2, 15 + pulse, 0, Math.PI * 2); c.fill();
+                        c.fillStyle = '#fff';
+                        c.beginPath(); c.arc(x + s / 2, y + s / 2, 5, 0, Math.PI * 2); c.fill();
+                    }
+                    else if (o.t === T.PORT_SHIP || o.t === T.PORT_CUBE || o.t === T.PORT_GRAV_I || o.t === T.PORT_GRAV_N) {
+                        c.save();
+                        c.translate(x + s / 2, y);
+                        c.scale(0.5, 1);
+                        c.beginPath(); c.arc(0, 0, s, 0, Math.PI * 2);
+                        c.lineWidth = 6;
+                        if (o.t === T.PORT_SHIP) c.strokeStyle = '#00ffa2';
+                        else if (o.t === T.PORT_CUBE) c.strokeStyle = '#0051ff';
+                        else if (o.t === T.PORT_GRAV_I) c.strokeStyle = '#ff0055';
+                        else if (o.t === T.PORT_GRAV_N) c.strokeStyle = '#00ccff';
+                        c.stroke();
+                        c.fillStyle = '#fff';
+                        for (let p = 0; p < 3; p++) {
+                            let py = (Date.now() * 0.05 + p * 20) % (s * 2) - s;
+                            c.beginPath(); c.arc(Math.sin(py * 0.1) * 10, py, 3, 0, Math.PI * 2); c.fill();
+                        }
+                        c.restore();
+                    }
+                },
+                drawPlayer() {
+                    const c = this.ctx;
+                    c.save();
+                    
+                    let pScale = (this.p.scale !== undefined) ? this.p.scale : 1.0;
+                    let gap = 40 * (1 - pScale);
+                    
+                    // Shift drawing center down to ground (or up to ceiling) to prevent hovering when scaled down
+                    c.translate(this.p.x + this.p.w / 2, this.p.y + this.p.h / 2 + (gap / 2) * this.p.gravDir);
+                    c.rotate(this.p.rot);
+
+                    let scaleX = 1, scaleY = 1;
+                    if (this.p.mode === 'ship') { scaleX = 1.2; scaleY = 0.8; }
+
+                    // Flip player icon if gravity is inverted, but only visually for the cube
+                    if (this.p.gravDir === -1 && this.p.mode === 'cube') scaleY = -1;
+                    
+                    c.scale(scaleX * pScale, scaleY * pScale);
+
+                    // Glow effect
+                    c.shadowBlur = 10;
+                    c.shadowColor = this.p.c1;
+
+                    // Body (Metallic with glow)
+                    let coreGrad = c.createLinearGradient(-20, -20, 20, 20);
+                    coreGrad.addColorStop(0, '#ffffff'); coreGrad.addColorStop(1, '#888888');
+                    c.fillStyle = coreGrad; c.fillRect(-20, -20, 40, 40);
+
+                    // Inner (Energy core)
+                    c.fillStyle = this.p.c1; c.fillRect(-12, -12, 24, 24);
+                    c.shadowBlur = 0; // Reset shadow for next elements
+
+                    // Border
+                    c.strokeStyle = this.p.c2; c.lineWidth = 2; c.strokeRect(-20, -20, 40, 40);
+
+                    if (this.p.mode === 'ship') {
+                        // Spacecraft details
+                        c.shadowBlur = 5; c.shadowColor = '#fff';
+                        c.fillStyle = '#aaa'; c.beginPath(); c.moveTo(-20, 0); c.lineTo(-35, -10); c.lineTo(-35, 10); c.closePath(); c.fill(); c.stroke();
+                        c.shadowBlur = 0;
+                        c.fillStyle = '#222'; c.fillRect(5, -15, 20, 15); // Cockpit
+                        // Thrust flame
+                        c.fillStyle = '#00ffea'; c.beginPath(); c.moveTo(-35, 0); c.lineTo(-50, (Math.random() - 0.5) * 10); c.lineTo(-35, 5); c.fill();
+                    }
+
+                    c.restore();
+                },
+
+                shake() { this.shakeT = 10; },
+
+                // Updates colors in the customizer menu
+                updIcon() {
+                    this.p.c1 = document.getElementById('c1').value;
+                    this.p.c2 = document.getElementById('c2').value;
+                    const c = document.getElementById('prevC').getContext('2d');
+                    c.clearRect(0, 0, 80, 80);
+                    c.fillStyle = this.p.c1; c.fillRect(10, 10, 60, 60);
+                    c.fillStyle = this.p.c2; c.fillRect(30, 30, 20, 20);
+                    c.strokeStyle = 'black'; c.lineWidth = 2; c.strokeRect(10, 10, 60, 60);
+                }
+            };
+
+            // --- EDITOR MODE ---
+            const Editor = {
+                objs: [],
+                cx: 0,
+                t: T.BLOCK, // Current tool
+
+                // Dragging state variables
+                isDragging: false,
+                dragStartX: 0,
+                dragStartY: 0,
+
+                init() {
+                    this.cx = 0;
+                    this.tool(T.BLOCK); // Set default tool
+
+                    const cvs = document.getElementById('gameCanvas');
+
+                    // --- INPUT HANDLERS for Editor ---
+
+                    const startInteraction = (e) => {
+                        if (Game.state !== 'editor') return;
+                        e.preventDefault();
+                        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                        this.isDragging = false;
+                        this.dragStartX = clientX;
+                        this.dragStartY = clientY;
+                    };
+
+                    const moveInteraction = (e) => {
+                        if (Game.state !== 'editor' || e.buttons === 0 && !e.touches) return; // For mouse drag
+                        e.preventDefault();
+
+                        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                        const deltaX = clientX - this.dragStartX;
+
+                        if (Math.abs(deltaX) > 5 || this.isDragging) {
+                            // It's a drag operation
+                            this.isDragging = true;
+                            this.cx -= deltaX * 1.5;
+                            this.cx = Math.max(0, this.cx);
+                            this.dragStartX = clientX; // Update start for next frame
+                        }
+                    };
+
+                    const endInteraction = (e) => {
+                        if (Game.state !== 'editor') return;
+
+                        const currentX = e.clientX || this.dragStartX; // Use last recorded position for touch end
+                        const currentY = e.clientY || this.dragStartY;
+
+                        // Check if it was a quick tap (minimal movement)
+                        const movedDistance = Math.hypot(currentX - this.dragStartX, currentY - this.dragStartY);
+
+                        if (movedDistance < 10 && !this.isDragging) {
+                            // We need to pass the event object if available (e.g., from touch end)
+                            this.handlePlacement(e.touches ? e.changedTouches[0] : e);
+                        }
+                        this.isDragging = false;
+                    };
+
+                    // Note: The previous logic had duplicated listener definitions, which may have led to issues.
+                    // We now assume clean re-binding every time Editor.init() is called.
+
+                    // Clean up previous listeners (best practice)
+                    cvs.removeEventListener('mousedown', startInteraction);
+                    cvs.removeEventListener('mousemove', moveInteraction);
+                    cvs.removeEventListener('mouseup', endInteraction);
+                    cvs.removeEventListener('touchstart', startInteraction);
+                    cvs.removeEventListener('touchmove', moveInteraction);
+                    cvs.removeEventListener('touchend', endInteraction);
+
+                    // Re-bind listeners
+                    cvs.addEventListener('mousedown', startInteraction);
+                    cvs.addEventListener('mousemove', moveInteraction);
+                    cvs.addEventListener('mouseup', endInteraction);
+
+                    cvs.addEventListener('touchstart', startInteraction);
+                    cvs.addEventListener('touchmove', moveInteraction);
+                    cvs.addEventListener('touchend', endInteraction);
+                },
+
+                handlePlacement(event) {
+                    const cvs = document.getElementById('gameCanvas');
+                    const r = cvs.getBoundingClientRect();
+                    // Use the clientX/Y from the event object
+                    let tx = event.clientX;
+                    let ty = event.clientY;
+
+                    // Calculate screen to world translation
+                    let floorScreenY = cvs.height - 200;
+                    let cy = (11 * C.BLK) - floorScreenY;
+
+                    let wx = (tx - r.left) + this.cx;
+                    let wy = (ty - r.top) + cy;
+
+                    // Convert to grid coordinates
+                    let gx = Math.floor(wx / C.BLK) * C.BLK;
+                    let gy = Math.floor(wy / C.BLK) * C.BLK;
+
+                    // Allow placement on ground row (row 10). Only disallow row 11 (off-screen).
+                    if (gy >= 11 * C.BLK) return;
+
+                    // Add/Remove logic: find existing object at this grid spot
+                    let idx = this.objs.findIndex(o => o.x === gx && o.y === gy);
+
+                    if (idx > -1) {
+                        // Remove if the current tool is the same as the existing object
+                        if (this.objs[idx].t === this.t) {
+                            this.objs.splice(idx, 1);
+                        } else {
+                            // Replace if the tool is different
+                            this.objs[idx].t = this.t;
+                        }
+                    } else {
+                        // Add new object
+                        this.objs.push({ x: gx, y: gy, t: this.t });
+                    }
+                },
+
+                draw(ctx, cx, cy) {
+                    // Draw Grid Overlay
+                    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+                    let sx = Math.floor(cx / C.BLK) * C.BLK;
+
+                    // Draw Vertical Lines
+                    for (let x = sx; x < sx + ctx.canvas.width + C.BLK * 2; x += C.BLK) {
+                        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 11 * C.BLK); ctx.stroke();
+                    }
+                    // Draw Horizontal Lines
+                    for (let y = 0; y < 12; y++) {
+                        let ry = y * C.BLK;
+                        ctx.beginPath(); ctx.moveTo(sx, ry); ctx.lineTo(sx + ctx.canvas.width + C.BLK * 2, ry); ctx.stroke();
+                    }
+                },
+
+                tool(id) {
+                    this.t = id;
+                    // Update selection visual
+                    document.querySelectorAll('#editor-ui .tool').forEach(e => e.classList.remove('selected'));
+
+                    let elementIndex = 0;
+                    // Map T constants to the index of the tool elements in the toolbar
+                    if (id === T.BLOCK) elementIndex = 0;
+                    else if (id === T.SPIKE) elementIndex = 1;
+                    else if (id === T.PAD_Y) elementIndex = 2;
+                    else if (id === T.PAD_P) elementIndex = 3;
+                    else if (id === T.ORB_Y) elementIndex = 4;
+                    else if (id === T.ORB_P) elementIndex = 5;
+                    else if (id === T.PORT_SHIP) elementIndex = 6;
+                    else if (id === T.PORT_CUBE) elementIndex = 7;
+                    else if (id === T.PORT_GRAV_I) elementIndex = 8;
+                    else if (id === T.PORT_GRAV_N) elementIndex = 9;
+
+                    document.querySelectorAll('#editor-ui .tool')[elementIndex].classList.add('selected');
+                },
+
+                test() {
+                    // Test button copies editor objects and starts the game
+                    Game.objs = JSON.parse(JSON.stringify(this.objs));
+                    Game.restart(true);
+                }
+            };
+
+
+            // --- GLOBAL EXPOSURE (REQUIRED for HTML onclick attributes) ---
+            // Expose the Game and Editor objects to the global window object.
+            window.Game = Game;
+            window.Editor = Editor;
+            window.Sfx = Sfx;
+
+
+            window.onload = Game.init.bind(Game);
+        })(); // IIFE ends here, ensuring internal variables like C and T are scoped locally.
+    </script>
+</body>
+
+</html>
+
+
+
+
+
